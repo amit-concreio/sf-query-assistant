@@ -9,8 +9,8 @@ const { SALESFORCE_API_VERSION } = process.env;
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const id = searchParams.get("id"); // For specific Account by ID
-    const query = searchParams.get("query"); // For SOQL query
+    const id = searchParams.get("id"); 
+    const query = searchParams.get("query"); 
 
     const tokenData = await SalesforceAuth();
     const { access_token, instance_url } = tokenData;
@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
       // Fetch specific Account by ID
       endpoint = `${instance_url}/services/data/v${apiVersion}/sobjects/Account/${id}`;
     } else {
-      // Fetch Accounts using SOQL query (default or provided)
+      // Fetch Accounts using SOQL query  
       const defaultQuery = "SELECT Id, Name, Type, Industry, BillingCity, BillingState, BillingCountry, Phone, Website, CreatedDate FROM Account LIMIT 100";
       endpoint = `${instance_url}/services/data/v${apiVersion}/query?q=${encodeURIComponent(query || defaultQuery)}`;
     }

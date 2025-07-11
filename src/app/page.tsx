@@ -1,21 +1,7 @@
 "use client";
 
+import { Account } from "@/types/type";
 import { useState } from "react";
-
-interface Account {
-  Id: string;
-  Name: string;
-  Type?: string;
-  Industry?: string;
-  BillingAddress?: {
-    city?: string;
-    state?: string;
-    country?: string;
-  };
-  Phone?: string;
-  Website?: string;
-  CreatedDate: string;
-}
 
 export default function Home() {
   const [accounts, setAccounts] = useState<Account[]>([]);
