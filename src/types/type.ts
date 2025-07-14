@@ -1,31 +1,36 @@
 export interface Account {
   Id: string;
   Name: string;
-  Type?: string;
   Industry?: string;
-  BillingAddress?: {
-    city?: string;
-    state?: string;
-    country?: string;
-  };
+  AnnualRevenue?: number;
+  BillingCity?: string;
   Phone?: string;
   Website?: string;
-  CreatedDate: string;
 }
 
-export interface DynamicQueryRequest {
+export interface ReadQueryRequest {
   objectType: string;
   fields?: string[];
   filters?: string;
   limit?: number;
   sortBy?: string;
-  sortOrder?: "ASC" | "DESC";
+  sortOrder?: 'ASC' | 'DESC';
 }
 
-export interface OllamaRequest {
-  model: string;
-  prompt: string;
-  stream: boolean;
+export interface CreateRequest {
+  objectType: string;
+  data: Record<string, any>;
+}
+
+export interface UpdateRequest {
+  objectType: string;
+  recordId: string;
+  data: Record<string, any>;
+}
+
+export interface DeleteRequest {
+  objectType: string;
+  recordId: string;
 }
 
 export interface SalesforceQueryResponse {
@@ -34,8 +39,16 @@ export interface SalesforceQueryResponse {
   records: any[];
 }
 
-export interface OllamaRequest {
-  model: string;
-  prompt: string;
-  stream: boolean;
+export interface SalesforceOperationResponse {
+  success: boolean;
+  id?: string;
+  message: string;
+}
+
+export interface QueryResult {
+  records?: any[];
+  success?: boolean;
+  id?: string;
+  message?: string;
+  totalSize?: number;
 }

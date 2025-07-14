@@ -1,12 +1,14 @@
 import { createSalesforceQueryPrompt } from "@/lib/prompts/sf-query";
-import { OllamaRequest } from "@/types/type";
 import { NextRequest, NextResponse } from "next/server";
 
-
-
+interface OllamaRequest {
+  model: string;
+  prompt: string;
+  stream: boolean;
+}
 
 export async function POST(req: NextRequest) {
-  console.log("�� [LLM] POST /api/llm - Starting LLM query processing");
+  console.log(" [LLM] POST /api/llm - Starting LLM query processing");
 
   try {
     console.log("🤖 [LLM] Parsing request body...");
@@ -47,7 +49,7 @@ export async function POST(req: NextRequest) {
 
     if (!ollamaResponse.ok) {
       const errorText = await ollamaResponse.text();
-      console.error("�� [LLM] ❌ Ollama API error response:", errorText);
+      console.error(" [LLM] ❌ Ollama API error response:", errorText);
       throw new Error("Ollama request failed");
     }
 
@@ -68,46 +70,87 @@ export async function POST(req: NextRequest) {
     try {
       parsedQuery = JSON.parse(ollamaData.response);
       console.log("🤖 [LLM] ✅ Successfully parsed LLM response");
-      console.log("�� [LLM] Parsed query object:", parsedQuery);
+      console.log(" [LLM] Parsed query object:", parsedQuery);
     } catch (parseError) {
       console.error("🤖 [LLM] ❌ Failed to parse LLM response as JSON");
-      console.error("�� [LLM] Raw response:", ollamaData.response);
+      console.error(" [LLM] Raw response:", ollamaData.response);
       throw new Error("Failed to parse LLM response");
     }
 
-    console.log("🤖 [LLM] Making request to dynamic Salesforce endpoint...");
-    // Call dynamic Salesforce endpoint
-    const salesforceResponse = await fetch(
-      `${req.nextUrl.origin}/api/salesforce/dynamic`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(parsedQuery),
-      }
-    );
+    // Determine operation type and route accordingly
+    const operation = parsedQuery.operation || "read";
+    console.log("🤖 [LLM] Operation type:", operation);
+
+    let endpoint = "";
+    let method = "POST";
+    let requestBody = {};
+
+    switch (operation.toLowerCase()) {
+      case "create":
+        endpoint = "/api/salesforce/create";
+        method = "POST";
+        requestBody = {
+          objectType: parsedQuery.objectType,
+          data: parsedQuery.data,
+        };
+        break;
+      case "update":
+        endpoint = "/api/salesforce/update";
+        method = "PUT";
+        requestBody = {
+          objectType: parsedQuery.objectType,
+          recordId: parsedQuery.recordId,
+          data: parsedQuery.data,
+        };
+        break;
+      case "delete":
+        endpoint = "/api/salesforce/delete";
+        method = "DELETE";
+        requestBody = {
+          objectType: parsedQuery.objectType,
+          recordId: parsedQuery.recordId,
+        };
+        break;
+      default: // read
+        endpoint = "/api/salesforce/read";
+        method = "POST";
+        requestBody = {
+          objectType: parsedQuery.objectType,
+          fields: parsedQuery.fields,
+          filters: parsedQuery.filters,
+          limit: parsedQuery.limit,
+          sortBy: parsedQuery.sortBy,
+          sortOrder: parsedQuery.sortOrder,
+        };
+    }
+
+    console.log("🤖 [LLM] Making request to Salesforce endpoint:", endpoint);
+    console.log("🤖 [LLM] Method:", method);
+    console.log(" [LLM] Request body:", requestBody);
+
+    // Call appropriate Salesforce endpoint
+    const salesforceResponse = await fetch(`${req.nextUrl.origin}${endpoint}`, {
+      method: method,
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(requestBody),
+    });
 
     console.log(
-      "🤖 [LLM] Dynamic Salesforce endpoint response status:",
+      "🤖 [LLM] Salesforce endpoint response status:",
       salesforceResponse.status
     );
 
     if (!salesforceResponse.ok) {
       const errorText = await salesforceResponse.text();
-      console.error(
-        "🤖 [LLM] ❌ Dynamic Salesforce endpoint error:",
-        errorText
-      );
-      throw new Error("Salesforce query failed");
+      console.error(" [LLM] ❌ Salesforce endpoint error:", errorText);
+      throw new Error("Salesforce operation failed");
     }
 
     const salesforceData = await salesforceResponse.json();
     console.log("🤖 [LLM] ✅ Successfully received Salesforce data");
-    console.log(
-      "🤖 [LLM] Salesforce data records:",
-      salesforceData.records?.length || 0
-    );
+    console.log("🤖 [LLM] Salesforce response:", salesforceData);
 
     return NextResponse.json(salesforceData);
   } catch (error: any) {
