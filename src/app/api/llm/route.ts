@@ -152,7 +152,12 @@ export async function POST(req: NextRequest) {
     console.log("🤖 [LLM] ✅ Successfully received Salesforce data");
     console.log("🤖 [LLM] Salesforce response:", salesforceData);
 
-    return NextResponse.json(salesforceData);
+    return NextResponse.json({
+        operation: operation,
+        data: salesforceData,
+        message: `Successfully executed ${operation} operation`,
+        success: true
+      });
   } catch (error: any) {
     console.error("🤖 [LLM] ❌ LLM route error:", error.message);
     console.error("🤖 [LLM] Stack trace:", error.stack);

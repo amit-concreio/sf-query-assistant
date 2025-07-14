@@ -100,6 +100,10 @@ FOR DELETE OPERATIONS:
 - For ambiguous terms (e.g., "technology accounts"), interpret as a filter (e.g., Industry = 'Technology').
 - For numerical comparisons, convert human-readable numbers (e.g., "1M" → 1000000, "500k" → 500000).
 - Handle complex filters like "accounts with revenue > 1M and industry is technology" → "AnnualRevenue > 1000000 AND Industry = 'Technology'".
+- If the user query mentions a Salesforce record ID (e.g., starts with "001", "003", "006", etc.), ALWAYS add a filter: Id = 'the_id_here' and set limit: 1. Ignore "all" or "show" if an ID is present.
+
+### Special Rule for Record ID
+- If the user query mentions a Salesforce record ID (e.g., starts with "001", "003", "006", etc.), ALWAYS add a filter: Id = 'the_id_here' and set limit: 1. Ignore "all" or "show" if an ID is present.
 
 ### Notes
 - Ensure the JSON is valid and properly formatted.
