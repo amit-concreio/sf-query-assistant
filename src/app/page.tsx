@@ -9,34 +9,6 @@ export default function Home() {
   const { currentSession, addMessage } = useChat();
   const [loading, setLoading] = useState(false);
 
-  // Helper to fetch a record by ID and show in table
-  const fetchAndShowRecord = async (objectType: string, id: string) => {
-    try {
-      const response = await fetch("/api/salesforce/read", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          objectType,
-          fields: null, // Let backend use defaults
-          filters: `Id = '${id}'`,
-          limit: 1,
-        }),
-      });
-      const result = await response.json();
-      addMessage({
-        type: "ai",
-        content: `Here are the details for record ID: ${id}`,
-        data: result,
-        operation: "read",
-      });
-    } catch (error) {
-      addMessage({
-        type: "ai",
-        content: "Could not fetch the record details after create/update.",
-      });
-    }
-  };
-
   const handleSendMessage = async (content: string) => {
     if (!currentSession) return;
 
@@ -58,13 +30,23 @@ export default function Home() {
 
       const result = await response.json();
 
-      // Handle create/update with follow-up fetch
+      // If the LLM API returns an error, show it in the chat
+      if (result.error) {
+        addMessage({
+          type: "ai",
+          content:
+            `Error: ${result.message || "An error occurred."}` +
+            (result.stack ? `\nDetails: ${result.stack}` : ""),
+        });
+        return;
+      }
+
+      // Handle create/update: only show status message and record ID
       if (
         (result.operation === "create" || result.operation === "update") &&
         result.data?.id &&
         result.data.success
       ) {
-        // Show success message
         addMessage({
           type: "ai",
           content:
@@ -74,11 +56,6 @@ export default function Home() {
           data: null,
           operation: result.operation,
         });
-        // Fetch and show the full record
-        await fetchAndShowRecord(
-          result.data.objectType || result.objectType,
-          result.data.id
-        );
       } else if (
         result.operation === "delete" &&
         result.data?.id &&
@@ -108,10 +85,12 @@ export default function Home() {
           operation: result.operation,
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       addMessage({
         type: "ai",
-        content: "Sorry, there was an error processing your request.",
+        content: error?.message
+          ? `Error: ${error.message}`
+          : "Sorry, there was an error processing your request.",
       });
     } finally {
       setLoading(false);

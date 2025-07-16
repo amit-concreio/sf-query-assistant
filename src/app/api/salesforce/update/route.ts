@@ -58,6 +58,7 @@ export async function PUT(req: NextRequest) {
       success: true,
       id: recordId,
       message: `${objectType} updated successfully`,
+      objectType, 
     });
   } catch (error: any) {
     console.error("✏️ [UPDATE] ❌ Update operation error:", error.message);

@@ -9,7 +9,7 @@ Respond with a JSON object containing one of the following structures:
 FOR READ OPERATIONS:
 {
   "operation": "read",
-  "objectType": "Account|Opportunity|Contact|Lead",
+  "objectType": "Account|Opportunity|Contact|Lead|Case|Task|Event",
   "fields": ["field1", "field2", ...],
   "filters": null | "SOQL-compatible filter string",
   "limit": 100,
@@ -67,6 +67,9 @@ FOR DELETE OPERATIONS:
    - Opportunity: Name, Amount, CloseDate, StageName, Type
    - Contact: FirstName, LastName, Email, Phone, Title
    - Lead: FirstName, LastName, Company, Email, Status
+   - Case: CaseNumber, Subject, Status, Priority, Description, ContactId, AccountId, Type, Origin
+   - Task: Subject, Status, Priority, ActivityDate, Description, WhoId, WhatId, Type
+   - Event: Subject, StartDateTime, EndDateTime, Location, Description, WhoId, WhatId, Type, IsAllDayEvent
 
 5. **Data** (for CREATE/UPDATE operations): Extract field values from the query:
    - "create account ABC Corp" → data: {"Name": "ABC Corp"}

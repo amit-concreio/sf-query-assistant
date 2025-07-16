@@ -59,6 +59,7 @@ export async function POST(req: NextRequest) {
       success: true,
       id: result.id,
       message: `${objectType} created successfully`,
+      objectType,
     });
   } catch (error: any) {
     console.error("➕ [CREATE] ❌ Create operation error:", error.message);

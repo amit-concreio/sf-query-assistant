@@ -93,9 +93,13 @@ export async function POST(req: NextRequest) {
     }
 
     const data = await response.json();
+    // Ensure records is always an array
+    if (!Array.isArray(data.records)) {
+      data.records = [];
+    }
     console.log("📖 [READ] ✅ Successfully retrieved read query data");
     console.log("📖 [READ] Total records:", data.totalSize);
-    console.log("📖 [READ] Records returned:", data.records?.length || 0);
+    console.log("📖 [READ] Records returned:", data.records.length);
     console.log("📖 [READ] Query done:", data.done);
 
     return NextResponse.json(data);

@@ -153,14 +153,21 @@ export async function POST(req: NextRequest) {
     console.log("🤖 [LLM] Salesforce response:", salesforceData);
 
     return NextResponse.json({
-        operation: operation,
-        data: salesforceData,
-        message: `Successfully executed ${operation} operation`,
-        success: true
-      });
+      operation: operation,
+      data: salesforceData,
+      message: `Successfully executed ${operation} operation`,
+      success: true,
+    });
   } catch (error: any) {
     console.error("🤖 [LLM] ❌ LLM route error:", error.message);
     console.error("🤖 [LLM] Stack trace:", error.stack);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(
+      {
+        error: true,
+        message: error.message || "An unknown error occurred in the LLM route.",
+        stack: error.stack || undefined,
+      },
+      { status: 500 }
+    );
   }
 }

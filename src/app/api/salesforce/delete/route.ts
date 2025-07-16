@@ -55,6 +55,7 @@ export async function DELETE(req: NextRequest) {
       success: true,
       id: recordId,
       message: `${objectType} deleted successfully`,
+      objectType, 
     });
   } catch (error: any) {
     console.error("��️ [DELETE] ❌ Delete operation error:", error.message);
