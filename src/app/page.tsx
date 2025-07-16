@@ -9,10 +9,36 @@ export default function Home() {
   const { currentSession, addMessage } = useChat();
   const [loading, setLoading] = useState(false);
 
+  // Helper to fetch a record by ID and show in table
+  const fetchAndShowRecord = async (objectType: string, id: string) => {
+    try {
+      const response = await fetch("/api/salesforce/read", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          objectType,
+          fields: null, // Let backend use defaults
+          filters: `Id = '${id}'`,
+          limit: 1,
+        }),
+      });
+      const result = await response.json();
+      addMessage({
+        type: "ai",
+        content: `Here are the details for record ID: ${id}`,
+        data: result,
+        operation: "read",
+      });
+    } catch (error) {
+      addMessage({
+        type: "ai",
+        content: "Could not fetch the record details after create/update.",
+      });
+    }
+  };
+
   const handleSendMessage = async (content: string) => {
     if (!currentSession) return;
-
-    console.log(" [FRONTEND] Sending message:", content);
 
     // Add user message
     addMessage({
@@ -23,51 +49,66 @@ export default function Home() {
     setLoading(true);
 
     try {
-      console.log(" [FRONTEND] Calling LLM API...");
-
-      // Call your existing LLM API - FIX: Send userQuery instead of query
+      // Call your existing LLM API
       const response = await fetch("/api/llm", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userQuery: content }), // FIXED: Changed from 'query' to 'userQuery'
+        body: JSON.stringify({ userQuery: content }),
       });
 
       const result = await response.json();
-      console.log("🚀 [FRONTEND] LLM Response:", result);
 
-      // Create a better response message
-      let responseContent = "Query executed successfully";
-      let responseData = null;
-
-      if (result.operation === "read" && result.data?.records) {
-        const recordCount = result.data.records.length;
-        responseContent = `Found ${recordCount} records. Here are the results:`;
-        responseData = result.data;
-      } else if (result.operation === "create" && result.data?.id) {
-        responseContent = `Record created successfully with ID: ${result.data.id}`;
-        responseData = result.data;
-      } else if (result.operation === "update" && result.data?.success) {
-        responseContent = `Record updated successfully`;
-        responseData = result.data;
-      } else if (result.operation === "delete" && result.data?.success) {
-        responseContent = `Record deleted successfully`;
-        responseData = result.data;
-      } else if (result.message) {
-        responseContent = result.message;
-        responseData = result.data;
+      // Handle create/update with follow-up fetch
+      if (
+        (result.operation === "create" || result.operation === "update") &&
+        result.data?.id &&
+        result.data.success
+      ) {
+        // Show success message
+        addMessage({
+          type: "ai",
+          content:
+            result.operation === "create"
+              ? `Record created successfully (ID: ${result.data.id})`
+              : `Record updated successfully (ID: ${result.data.id})`,
+          data: null,
+          operation: result.operation,
+        });
+        // Fetch and show the full record
+        await fetchAndShowRecord(
+          result.data.objectType || result.objectType,
+          result.data.id
+        );
+      } else if (
+        result.operation === "delete" &&
+        result.data?.id &&
+        result.data.success
+      ) {
+        // Show delete message only
+        addMessage({
+          type: "ai",
+          content: `Record deleted successfully (ID: ${result.data.id})`,
+          data: null,
+          operation: "delete",
+        });
+      } else if (result.operation === "read" && result.data?.records) {
+        // Normal read: show table
+        addMessage({
+          type: "ai",
+          content: `Found ${result.data.records.length} records. Here are the results:`,
+          data: result.data,
+          operation: "read",
+        });
+      } else {
+        // Fallback for any other response
+        addMessage({
+          type: "ai",
+          content: result.message || "Query executed successfully",
+          data: result.data,
+          operation: result.operation,
+        });
       }
-
-      // Add AI response
-      addMessage({
-        type: "ai",
-        content: responseContent,
-        data: responseData,
-        operation: result.operation,
-      });
-
-      console.log("🚀 [FRONTEND] Added AI message to chat");
     } catch (error) {
-      console.error("🚀 [FRONTEND] Error:", error);
       addMessage({
         type: "ai",
         content: "Sorry, there was an error processing your request.",
