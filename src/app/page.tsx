@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { ChatContainer } from "@/components/chat/ChatContainer";
 import { useChat } from "@/hooks/useChat";
 import { ChatMessage } from "@/types/chat";
@@ -8,6 +8,7 @@ import { ChatMessage } from "@/types/chat";
 export default function Home() {
   const { currentSession, addMessage } = useChat();
   const [loading, setLoading] = useState(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const handleSendMessage = async (content: string) => {
     if (!currentSession) return;
@@ -19,24 +20,25 @@ export default function Home() {
     });
 
     setLoading(true);
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
 
     try {
-      // Call your existing LLM API
       const response = await fetch("/api/llm", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userQuery: content }),
+        signal: abortController.signal,
       });
 
       const result = await response.json();
+      console.log("Backend error:", result); // For developers only
 
       // If the LLM API returns an error, show it in the chat
       if (result.error) {
         addMessage({
           type: "ai",
-          content:
-            `Error: ${result.message || "An error occurred."}` +
-            (result.stack ? `\nDetails: ${result.stack}` : ""),
+          content: result.error, // Show only the user-friendly error message
         });
         return;
       }
@@ -86,13 +88,27 @@ export default function Home() {
         });
       }
     } catch (error: any) {
-      addMessage({
-        type: "ai",
-        content: error?.message
-          ? `Error: ${error.message}`
-          : "Sorry, there was an error processing your request.",
-      });
+      if (error.name === "AbortError") {
+        addMessage({
+          type: "ai",
+          content: "Request cancelled by user.",
+        });
+      } else {
+        addMessage({
+          type: "ai",
+          content:
+            "The server is not responding. Please check your connection or try again later.",
+        });
+      }
     } finally {
+      setLoading(false);
+      abortControllerRef.current = null;
+    }
+  };
+
+  const handleCancel = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
       setLoading(false);
     }
   };
@@ -106,10 +122,20 @@ export default function Home() {
   }
 
   return (
-    <ChatContainer
-      messages={currentSession.messages}
-      onSendMessage={handleSendMessage}
-      loading={loading}
-    />
+    <div className="relative h-full">
+      <ChatContainer
+        messages={currentSession.messages}
+        onSendMessage={handleSendMessage}
+        loading={loading}
+      />
+      {loading && (
+        <button
+          onClick={handleCancel}
+          className="absolute right-4 bottom-4 px-4 py-2 bg-red-500 text-white rounded shadow hover:bg-red-600 z-10"
+        >
+          Cancel
+        </button>
+      )}
+    </div>
   );
 }

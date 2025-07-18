@@ -58,11 +58,28 @@ export async function PUT(req: NextRequest) {
       success: true,
       id: recordId,
       message: `${objectType} updated successfully`,
-      objectType, 
+      objectType,
     });
   } catch (error: any) {
-    console.error("✏️ [UPDATE] ❌ Update operation error:", error.message);
-    console.error("✏️ [UPDATE] Stack trace:", error.stack);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    let userMessage = "An unexpected error occurred. Please try again.";
+    const errorText = error.message || "";
+    if (errorText.includes("fetch failed")) {
+      userMessage =
+        "The server is not responding. Please check your connection or try again later.";
+    } else if (errorText.includes("INVALID_FIELD")) {
+      userMessage =
+        "One or more fields in your request do not exist in Salesforce. Please check the field names.";
+    } else if (errorText.includes("NOT_FOUND")) {
+      userMessage =
+        "The requested object or resource was not found in Salesforce.";
+    } else if (errorText.includes("update failed")) {
+      userMessage =
+        "There was a problem updating the record in Salesforce. Please check your input.";
+    } else if (errorText) {
+      userMessage = errorText;
+    }
+    // Log technical details for debugging
+    console.error("[UPDATE] Detailed error:", error);
+    return NextResponse.json({ error: userMessage }, { status: 500 });
   }
 }

@@ -10,6 +10,18 @@ interface OllamaRequest {
 export async function POST(req: NextRequest) {
   console.log(" [LLM] POST /api/llm - Starting LLM query processing");
 
+  // --- Cancellation support ---
+  let clientAborted = false;
+  const ollamaAbortController = new AbortController();
+  const salesforceAbortController = new AbortController();
+  req.signal?.addEventListener("abort", () => {
+    clientAborted = true;
+    ollamaAbortController.abort();
+    salesforceAbortController.abort();
+    console.log(" [LLM] Client disconnected, aborted downstream requests.");
+  });
+  // --- End cancellation support ---
+
   try {
     console.log("🤖 [LLM] Parsing request body...");
     const { userQuery } = await req.json();
@@ -39,6 +51,7 @@ export async function POST(req: NextRequest) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify(ollamaRequest),
+      signal: ollamaAbortController.signal,
     });
 
     console.log("🤖 [LLM] Ollama API response status:", ollamaResponse.status);
@@ -135,6 +148,7 @@ export async function POST(req: NextRequest) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify(requestBody),
+      signal: salesforceAbortController.signal,
     });
 
     console.log(
@@ -159,6 +173,17 @@ export async function POST(req: NextRequest) {
       success: true,
     });
   } catch (error: any) {
+    // Handle client abort
+    if (clientAborted || error?.name === "AbortError") {
+      console.warn(" [LLM] Request cancelled by client (abort)");
+      return NextResponse.json(
+        {
+          error: true,
+          message: "Request cancelled by client.",
+        },
+        { status: 499 }
+      );
+    }
     console.error("🤖 [LLM] ❌ LLM route error:", error.message);
     console.error("🤖 [LLM] Stack trace:", error.stack);
     return NextResponse.json(

@@ -4,7 +4,7 @@ import { SalesforceAuth } from "@/utility/sf-auth";
 interface ReadQueryRequest {
   objectType: string;
   fields?: string[];
-  filters?: string;
+  filters?: string | Record<string, any>;
   limit?: number;
   sortBy?: string;
   sortOrder?: "ASC" | "DESC";
@@ -42,12 +42,46 @@ export async function POST(req: NextRequest) {
     let soqlQuery = `SELECT ${selectedFields} FROM ${objectType}`;
 
     // Handle filters - only add if filters exist and are not empty
-    if (filters && filters.trim() !== "") {
-      const cleanFilters = filters.trim();
-      if (cleanFilters.toUpperCase().startsWith("WHERE ")) {
-        soqlQuery += ` ${cleanFilters}`;
-      } else {
-        soqlQuery += ` WHERE ${cleanFilters}`;
+    if (filters) {
+      let filterClause = "";
+
+      if (typeof filters === "string") {
+        // Handle string filters (SOQL WHERE clause)
+        if (filters.trim() !== "") {
+          const cleanFilters = filters.trim();
+          if (cleanFilters.toUpperCase().startsWith("WHERE ")) {
+            filterClause = ` ${cleanFilters}`;
+          } else {
+            filterClause = ` WHERE ${cleanFilters}`;
+          }
+        }
+      } else if (typeof filters === "object" && filters !== null) {
+        // Handle object filters - convert to SOQL WHERE clause
+        const filterConditions = [];
+        for (const [field, value] of Object.entries(filters)) {
+          if (value !== null && value !== undefined) {
+            if (typeof value === "string") {
+              // Handle string values with quotes
+              filterConditions.push(
+                `${field} = '${value.replace(/'/g, "\\'")}'`
+              );
+            } else if (typeof value === "number") {
+              // Handle numeric values
+              filterConditions.push(`${field} = ${value}`);
+            } else if (typeof value === "boolean") {
+              // Handle boolean values
+              filterConditions.push(`${field} = ${value}`);
+            }
+          }
+        }
+
+        if (filterConditions.length > 0) {
+          filterClause = ` WHERE ${filterConditions.join(" AND ")}`;
+        }
+      }
+
+      if (filterClause) {
+        soqlQuery += filterClause;
       }
     }
 
@@ -104,8 +138,25 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(data);
   } catch (error: any) {
-    console.error("📖 [READ] ❌ Read query error:", error.message);
-    console.error(" [READ] Stack trace:", error.stack);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    let userMessage = "An unexpected error occurred. Please try again.";
+    const errorText = error.message || "";
+    if (errorText.includes("fetch failed")) {
+      userMessage =
+        "The server is not responding. Please check your connection or try again later.";
+    } else if (errorText.includes("INVALID_FIELD")) {
+      userMessage =
+        "One or more fields in your query do not exist in Salesforce. Please check the field names.";
+    } else if (errorText.includes("NOT_FOUND")) {
+      userMessage =
+        "The requested object or resource was not found in Salesforce.";
+    } else if (errorText.includes("query failed")) {
+      userMessage =
+        "There was a problem with your Salesforce query. Please check your query syntax and field names.";
+    } else if (errorText) {
+      userMessage = errorText;
+    }
+    // Log technical details for debugging
+    console.error("[READ] Detailed error:", error);
+    return NextResponse.json({ error: userMessage }, { status: 500 });
   }
 }
