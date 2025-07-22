@@ -1,4 +1,5 @@
 import React from "react";
+import { AggregateTable } from "./AggregateTable";
 
 interface GenericTableProps {
   data: any;
@@ -20,6 +21,25 @@ export const GenericTable = ({
   emoji = "📄",
 }: GenericTableProps) => {
   if (!data.records || !Array.isArray(data.records)) return null;
+  
+  // Check if this is aggregate data
+  const isAggregateData = data.aggregateMetadata && data.aggregateMetadata.queryType === "aggregate";
+  
+  // Route to AggregateTable if it's aggregate data
+  if (isAggregateData) {
+    return (
+      <AggregateTable
+        data={data}
+        page={page}
+        setPage={setPage}
+        pageSize={pageSize}
+        singleRecord={singleRecord}
+        title={title}
+        emoji={emoji}
+      />
+    );
+  }
+  
   const total = data.records.length;
   const start = singleRecord ? 0 : page * pageSize;
   const end = singleRecord ? 1 : Math.min(start + pageSize, total);

@@ -78,6 +78,14 @@ export default function Home() {
           data: result.data,
           operation: "read",
         });
+      } else if (result.operation === "aggregate" && result.data) {
+        // Aggregate: show aggregate table
+        addMessage({
+          type: "ai",
+          content: `Here are the aggregate results:`,
+          data: result.data,
+          operation: "aggregate",
+        });
       } else {
         // Fallback for any other response
         addMessage({

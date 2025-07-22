@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ChatMessage } from "@/types/chat";
 import { GenericTable } from "../data-display/GenericTable";
+import { AggregateTable } from "../data-display/AggregateTable";
 
 interface MessageBubbleProps {
   message: ChatMessage;
@@ -23,6 +24,22 @@ export const MessageBubble = ({ message }: MessageBubbleProps) => {
   const renderData = (data: any, operation?: string, objectType?: string) => {
     if (!data) return null;
     const meta = objectTypeMeta[objectType || ""] || objectTypeMeta.default;
+    
+    // Handle aggregate operations
+    if (operation === "aggregate" && data.records && Array.isArray(data.records)) {
+      return (
+        <AggregateTable
+          data={data}
+          page={page}
+          setPage={setPage}
+          pageSize={pageSize}
+          title={`${meta.title} (Aggregate)`}
+          emoji="📊"
+        />
+      );
+    }
+    
+    // Handle read operations
     if (operation === "read" && data.records && Array.isArray(data.records)) {
       return (
         <GenericTable
@@ -35,6 +52,7 @@ export const MessageBubble = ({ message }: MessageBubbleProps) => {
         />
       );
     }
+    
     // For create/update/delete, show JSON or a simple message
     if (operation === "create" || operation === "update") {
       if (data.records && Array.isArray(data.records)) {

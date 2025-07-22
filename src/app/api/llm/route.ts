@@ -81,13 +81,34 @@ export async function POST(req: NextRequest) {
     console.log("🤖 [LLM] Parsing LLM response as JSON...");
     let parsedQuery;
     try {
+      // Try direct JSON parse first
       parsedQuery = JSON.parse(ollamaData.response);
       console.log("🤖 [LLM] ✅ Successfully parsed LLM response");
       console.log(" [LLM] Parsed query object:", parsedQuery);
     } catch (parseError) {
+      // Fallback: try to extract JSON from markdown/code block or after extra text
       console.error("🤖 [LLM] ❌ Failed to parse LLM response as JSON");
       console.error(" [LLM] Raw response:", ollamaData.response);
-      throw new Error("Failed to parse LLM response");
+      let jsonString = ollamaData.response;
+      // Extract only the JSON part between the first '{' and the last '}'
+      const firstBrace = jsonString.indexOf("{");
+      const lastBrace = jsonString.lastIndexOf("}");
+      if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+        jsonString = jsonString.slice(firstBrace, lastBrace + 1);
+      }
+      // Remove markdown code block markers if present
+      jsonString = jsonString
+        .replace(/```[a-zA-Z]*[\r\n]+/, "")
+        .replace(/```[\r\n]*/g, "");
+      try {
+        parsedQuery = JSON.parse(jsonString);
+        console.log(
+          "🤖 [LLM] ✅ Successfully parsed LLM response after cleaning"
+        );
+        console.log(" [LLM] Parsed query object:", parsedQuery);
+      } catch (finalParseError) {
+        throw new Error("Failed to parse LLM response");
+      }
     }
 
     // Determine operation type and route accordingly
@@ -122,6 +143,20 @@ export async function POST(req: NextRequest) {
         requestBody = {
           objectType: parsedQuery.objectType,
           recordId: parsedQuery.recordId,
+        };
+        break;
+      case "aggregate":
+        endpoint = "/api/salesforce/aggregate";
+        method = "POST";
+        requestBody = {
+          objectType: parsedQuery.objectType,
+          aggregateFunctions: parsedQuery.aggregateFunctions,
+          groupBy: parsedQuery.groupBy,
+          having: parsedQuery.having,
+          filters: parsedQuery.filters,
+          limit: parsedQuery.limit,
+          sortBy: parsedQuery.sortBy,
+          sortOrder: parsedQuery.sortOrder,
         };
         break;
       default: // read
